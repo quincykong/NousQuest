@@ -1,0 +1,71 @@
+# Frontend (React)
+frontend/node_modules/
+frontend/build/
+frontend/.env
+frontend/.DS_Store
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Coverage directory used by testing tools
+frontend/coverage/
+
+# Production
+frontend/build/
+
+# MacOS files
+frontend/.DS_Store
+
+# Batch files
+frontend/.bat
+
+# Backend (Flask)
+backend/__pycache__/
+backend/env/
+backend/instance/
+backend/*.pyc
+backend/.DS_Store
+backend/.vscode/
+backend/venv/
+backend/.env
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/uploads/
+
+# Log files
+backend/*.log
+backend/*.pot
+backend/*.mo
+
+# Pytest Cache
+backend/.pytest_cache/
+backend/.coverage
+backend/.coverage.*
+backend/.tox/
+backend/coverage.xml
+backend/nosetests.xml
+
+# Jupyter Notebooks
+backend/.ipynb_checkpoints/
+
+# SQLite database files
+backend/*.sqlite3
+backend/*.db
+
+# Flask-Migrate files (database migrations)
+backend/migrations/
+
+# VSCode Settings (Optional, if you don't want to track them)
+backend/.vscode/
+
+# Project automation
+backend/*.bat
+backend/genuser.py
+
+frontend/*.bat
+
+# General Ignore Files (can be applied to both frontend and backend)
+.DS_Store
+*.log
+.env
+*.swp
