@@ -163,7 +163,7 @@ const AssignmentBlock = ({
           {filterItems(assigned, assignedFilter).map(item => (
             <ListItem
               key={item.id}
-              button={removableItems.includes(item.id) ? true : undefined}
+              button={removableItems.includes(item.id) ? "true" : undefined}
               disabled={!removableItems.includes(item.id)}
               onClick={() => handleMoveItem(item, 'right')}
               onKeyDown={(e) => handleKeyDown(e, item, 'right')}
@@ -211,7 +211,7 @@ const AssignmentBlock = ({
           {filterItems(available, availableFilter).map(item => (
             <ListItem 
                 key={item.id} 
-                button={true}
+                button={"true"}
                 onClick={() => handleMoveItem(item, 'left')}
                 onKeyDown={(e) => handleKeyDown(e, item, 'left')}
                 style={{

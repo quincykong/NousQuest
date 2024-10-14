@@ -30,13 +30,15 @@ const BaseTemplate = ({ children, showNav = false }) => {
           sx={{
             flexGrow: 1,
             p: 3,
-            width: '100%', 
+            //marginLeft: drawerOpen && !isSmallScreen ? `${drawerWidth}px` : '0px', // Shift content to the right when drawer is open
+            //width: drawerOpen && !isSmallScreen ? `calc(100% - ${drawerWidth}px)` : '100%', // Adjust width to account for drawer            
+            //width: '100%', 
+            mt: { xs: '56px', sm: '64px' },
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'left',
           }}
         >
-          <Toolbar /> {/* Push content below the AppBar */}
           <Box
             sx={{
               width: '100%',

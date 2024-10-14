@@ -9,6 +9,7 @@ bcrypt = Bcrypt()
 
 # M:M - Class enrollment
 class_enrollment = db.Table('class_enrollment',
+    db.Column('org_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
     db.Column('class_id', db.String(36), db.ForeignKey('class.id'), primary_key=True),
     db.Column('user_id', db.String(36), db.ForeignKey('user.id'), primary_key=True),
     db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
@@ -16,15 +17,26 @@ class_enrollment = db.Table('class_enrollment',
 )
 
 # M:M - User Group
-usergroup_membership = db.Table('usergroup_membership',
+usergroup_user = db.Table('usergroup_user',
+    db.Column('org_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
     db.Column('group_id', db.String(36), db.ForeignKey('usergroup.id'), primary_key=True),
     db.Column('user_id', db.String(36), db.ForeignKey('user.id'), primary_key=True),
     db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
     db.Column('created_by', db.String(36), nullable=False)
 )
 
+# M:M - User Grooup to Tag
+usergroup_tag = db.Table('usergroup_tag',
+    db.Column('org_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
+    db.Column('usergroup_id', db.String(36), db.ForeignKey('usergroup.id'), primary_key=True),
+    db.Column('tag_id', db.String(36), db.ForeignKey('tag.id'), primary_key=True),
+    db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
+    db.Column('created_by', db.String(36), nullable=False)
+)
+
 # M:M - SecurityRole to Authorization
 securityrole_authorizations = db.Table('securityrole_authorizations',
+    db.Column('org_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
     db.Column('securityrole_id', db.String(36), db.ForeignKey('securityrole.id'), primary_key=True),
     db.Column('authorization_id', db.String(36), db.ForeignKey('authorization.id'), primary_key=True),
     db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
@@ -33,6 +45,7 @@ securityrole_authorizations = db.Table('securityrole_authorizations',
 
 # M:M - User to Role
 user_securityroles = db.Table('user_securityroles',
+    db.Column('org_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
     db.Column('user_id', db.String(36), db.ForeignKey('user.id'), primary_key=True),
     db.Column('securityrole_id', db.String(36), db.ForeignKey('securityrole.id'), primary_key=True),
     db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
@@ -40,7 +53,7 @@ user_securityroles = db.Table('user_securityroles',
 )
 
 # M:M - User to Organization
-user_oganization = db.table('user_organizations',
+user_organization = db.table('user_organizations',
     db.Column('user_id', db.String(36), db.ForeignKey('user.id'), primary_key=True),
     db.Column('organization_id', db.String(36), db.ForeignKey('organization.id'), primary_key=True),
     db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
@@ -50,24 +63,18 @@ user_oganization = db.table('user_organizations',
 class Tag(db.Model):
     __tablename__ = 'tag'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
-    resource = db.Column(db.String(30), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
+    resource_id = db.Column(db.String(36), nullable=False)
     name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., 'loop', 'variables'
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
     created_by = db.Column(db.String(36), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=func.now(), onupdate=func.now())
     updated_by = db.Column(db.String(36), nullable=False)
 
-# Association table for the many-to-many relationship between Question and Tag
-question_tags = db.Table('question_tags',
-    db.Column('question_id', db.String(36), db.ForeignKey('quizquestion.id'), primary_key=True),  # Corrected reference
-    db.Column('tag_id', db.String(36), db.ForeignKey('tag.id'), primary_key=True),
-    db.Column('created_at', db.DateTime(timezone=True), default=func.now()),
-    db.Column('created_by', db.String(36), nullable=False)
-)
-
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
@@ -100,7 +107,7 @@ class QuizQuestion(db.Model):
     score_weight = db.Column(db.Integer) # Question individual score
     question_duration = db.Column(db.Integer, nullable=False, default=0)    # in minutes
     shuffle_option = db.Column(db.String(1), nullable=False, default="N") # Y=Shuffle options for MC question; N=In creation sequence
-    tags = db.relationship('Tag', secondary=question_tags, backref='question')
+    #tags = db.relationship('Tag', secondary=question_tags, backref='question')
     reviewer_id = db.Column(db.String(36), db.ForeignKey('user.id'))
     review_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
@@ -114,7 +121,7 @@ class QuizQuestion(db.Model):
 class UserGroup(db.Model):
     __tablename__ = 'usergroup'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
-    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     title = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(150), nullable=True)
     studentcount = db.Column(db.Integer, nullable=False, default=0)
@@ -125,18 +132,28 @@ class UserGroup(db.Model):
     updated_by = db.Column(db.String(36), nullable=False)
 
     # Relationship to Users (many-to-many)
-    members = db.relationship('User', secondary=usergroup_membership, backref=db.backref('usergroup'))
+    users = db.relationship('User', secondary=usergroup_user, backref=db.backref('usergroup'))
+    tags = db.relationship('Tag', secondary=usergroup_tag, backref=db.backref('usergroups', lazy='dynamic'))
+
+# Enum user type
+from sqlalchemy.types import Enum
+import enum
+class UserClassEnum(enum.Enum):
+    ADMIN = "admin"
+    INSTRUCTOR = "instructor"
+    STUDENT = "student"
 
 # Table: User
 class User(db.Model, UserMixin):
     __tablename__ = 'user'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     firstname = db.Column(db.String(50), nullable=False)
     lastname = db.Column(db.String(50), nullable=False)
-    userclass = db.Column(db.String(10), unique=True, nullable=False)   # system, org, student
+    userclass = db.Column(Enum(UserClassEnum), unique=True, nullable=False)   # system, org, student
     locked = db.Column(db.Boolean, default=False)
     last_logon = db.Column(db.DateTime)
     logon_attempt = db.Column(db.Integer, nullable=False, default=0)
@@ -145,8 +162,6 @@ class User(db.Model, UserMixin):
     updated_by = db.Column(db.String(36), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=func.now(), onupdate=func.now())
     
-    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'))
-
     # Relationships
     enrolled_students = db.relationship(
         'Class', 
@@ -154,6 +169,8 @@ class User(db.Model, UserMixin):
         back_populates='enrolled_students',  # Explicitly link this to Class.enrolled_students
         overlaps="enrolled_courses"
     )
+
+    roles = db.relationship('SecurityRole', secondary=user_securityroles, backref='users')
 
     def set_password(self, password):
         """Hashes the password and stores it."""
@@ -166,6 +183,7 @@ class User(db.Model, UserMixin):
 class Class(db.Model):
     __tablename__ = 'class'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=False)
     class_url = db.Column(db.String(256))  # for course materials or video link
@@ -179,8 +197,6 @@ class Class(db.Model):
     created_by = db.Column(db.String(36), nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=func.now(), onupdate=func.now())
     updated_by = db.Column(db.String(36), nullable=False)
-    
-    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'))
 
     # Correctly link the relationship
     enrolled_students = db.relationship(
@@ -205,6 +221,7 @@ class QuizOption(db.Model):
 class QuizSubmission(db.Model):
     __tablename__ = 'quizsubmission'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)  # References the student who took the quiz
     quiz_id = db.Column(db.String(36), db.ForeignKey('quiz.id'), nullable=False)  # References the quiz taken
     question_id = db.Column(db.String(36), db.ForeignKey('quizquestion.id'), nullable=False)  # Corrected foreign key
@@ -222,6 +239,7 @@ class QuizSubmission(db.Model):
 class SecurityRole(db.Model):
     __tablename__ = 'securityrole'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
+    org_id = db.Column(db.String(36), db.ForeignKey('organization.id'), primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
@@ -257,7 +275,6 @@ class Action(db.Model):
 class Authorization(db.Model):
     __tablename__ = 'authorization'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()), unique=True, nullable=False)
-    role_id = db.Column(db.String(36), db.ForeignKey('securityrole.id'), nullable=False)
     resource_id = db.Column(db.String(36), db.ForeignKey('resource.id'), nullable=False)
     action_id = db.Column(db.String(36), db.ForeignKey('action.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
@@ -267,7 +284,7 @@ class Authorization(db.Model):
 
     # Unique constraint to ensure no duplicate permissions for a role-resource-action combination
     __table_args__ = (
-        UniqueConstraint('role_id', 'resource_id', 'action_id', name='uix_securityrole_resource_action'),
+        UniqueConstraint('resource_id', 'action_id', name='uix_securityrole_resource_action'),
     )
 
 # Table: Organization

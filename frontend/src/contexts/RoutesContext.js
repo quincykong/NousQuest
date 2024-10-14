@@ -1,17 +1,5 @@
 import React, { createContext, useContext } from 'react';
-
-const routes = {
-  frontendlog: '/frontendlog',
-  home: '/home',
-  login: '/login',
-  forgotPassword: '/forgot-password',
-  api: {
-    frontendlog: 'api/frontendlog',
-    home: 'api/home',
-    login: '/api/login',
-    resetPassword: '/api/reset-password',
-  },
-};
+import routes from './Routes';
 
 const RoutesContext = createContext();
 

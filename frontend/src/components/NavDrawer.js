@@ -16,7 +16,7 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { Link } from 'react-router-dom';
-import { useAuth } from './AuthProvider'; // assuming you have a useAuth hook to handle JWT and roles
+import { useAuth } from '../contexts/AuthProvider'; // assuming you have a useAuth hook to handle JWT and roles
 
 const drawerWidth = 230;
 
@@ -32,17 +32,17 @@ const NavDrawer = () => {
   };
 
   const hasPermission = (role) => {
-    return userRoles.includes(role); // Check if user has the required role
+    // return userRoles.includes(role); // Check if user has the required role
+    //alert(`role:${role}`)
+    return userRoles && userRoles.includes(role); // Check if userRoles is defined
   };
 
   const drawerContent = (
     <List>
       {[
         { text: 'Home', icon: <HomeIcon />, link: '/' },
-        { text: 'About', icon: <InfoIcon />, link: '/about' },
-        { text: 'Contact', icon: <ContactMailIcon />, link: '/contact' },
       ].map((item, index) => (
-        <ListItem button component={Link} to={item.link} key={index}>
+        <ListItem component={Link} to={item.link} key={index}>
           <ListItemIcon>{item.icon}</ListItemIcon>
           <ListItemText primary={item.text} />
         </ListItem>
@@ -60,7 +60,7 @@ const NavDrawer = () => {
 
           {/* Conditionally show Student Group sub-item */}
           {hasPermission('instructor') && (
-            <ListItem button component={Link} to="/student-group">
+            <ListItem component={Link} to="/student-group">
               <ListItemIcon>
                 <GroupIcon />
               </ListItemIcon>
@@ -86,9 +86,6 @@ const NavDrawer = () => {
             <MenuIcon />
           </IconButton>
         )}
-        <Typography variant="h6" noWrap>
-          My Application
-        </Typography>
       </Toolbar>
       <Drawer
         variant={isSmallScreen ? 'temporary' : 'permanent'}

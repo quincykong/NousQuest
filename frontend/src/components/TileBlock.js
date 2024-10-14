@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Typography, IconButton, Divider, Collapse, useMediaQuery } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -9,18 +9,18 @@ const TileBlock = ({
   children,
   icon,
   collapsible = true,
-  initialCollapsed = false,
+  isCollapsed,        // New prop to control the collapsed state from the parent
+  onToggle,           // New prop to notify parent when toggled
   backgroundColor,
   textColor,
   inheritTheme = true
 }) => {
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleToggleCollapse = () => {
-    if (collapsible) {
-      setCollapsed(!collapsed);
+    if (collapsible && onToggle) {
+      onToggle(!isCollapsed);  // Call the parent handler with the updated state
     }
   };
 
@@ -51,7 +51,7 @@ const TileBlock = ({
       <Box
         style={titleBarStyles}
         onClick={handleToggleCollapse}
-        aria-expanded={!collapsed}
+        aria-expanded={!isCollapsed}
         aria-controls="tile-content"
         role="button"
         tabIndex={0}
@@ -63,15 +63,15 @@ const TileBlock = ({
         {collapsible && (
           <IconButton
             onClick={handleToggleCollapse}
-            aria-label={collapsed ? 'Expand' : 'Collapse'}
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             size="small"
           >
-            {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+            {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
           </IconButton>
         )}
       </Box>
       <Divider />
-      <Collapse in={!collapsed}>
+      <Collapse in={!isCollapsed}>
         <Box id="tile-content" mt={2}>
           {children}
         </Box>
@@ -80,5 +80,4 @@ const TileBlock = ({
   );
 };
 
-//export default React.memo(TileBlock);
-export default TileBlock;
+export default React.memo(TileBlock);

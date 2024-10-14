@@ -1,6 +1,7 @@
 import pika
 import json
-from app.utils.logging_config import app_logger
+from flask import current_app
+#from app.utils.logging_config import app_logger
 
 def get_rabbitmq_channel():
     """
@@ -30,7 +31,7 @@ def send_to_rabbitmq(message, client_info):
         })
 
         # Publish the message to the 'frontend_errors' queue
-        app_logger.info(f'\tsend_to_rabbitmq [body]: {body}')
+        current_app.app_logger.debug(f'\tsend_to_rabbitmq [body]: {body}')
 
         channel.basic_publish(
             exchange='',
@@ -40,5 +41,5 @@ def send_to_rabbitmq(message, client_info):
 
         return True
     except Exception as e:
-        print(f"Failed to send to RabbitMQ: {str(e)}")
+        current_app.app_logger.warning(f"send_to_rabbitmq error: {str(e)}")
         return False

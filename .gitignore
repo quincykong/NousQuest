@@ -60,12 +60,16 @@ backend/.vscode/
 
 # Project automation
 backend/*.bat
-backend/genuser.py
+backend/gen*.py
 
 frontend/*.bat
+
+frontend/src/backup/
 
 # General Ignore Files (can be applied to both frontend and backend)
 .DS_Store
 *.log
 .env
 *.swp
+*.bat
+package*.*

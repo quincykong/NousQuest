@@ -3,7 +3,7 @@ import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Switch from '@mui/material/Switch';
 import TileBlock from './components/TileBlock';
-import DataList from './components/DataList';
+// import DataList from './components/DataList';
 import AssignmentBlock from './components/AssignmentBlock';
 import ToastProvider, { triggerToast } from './components/ToastProvider';
 import FooterActions from './components/FooterActions'
@@ -85,13 +85,13 @@ const TestPage = () => {
             initialCollapsed={false}
             inheritTheme={true}
           >
-            <DataList
+            {/* <DataList
               columns={columns}
               rows={rows}
               pageInfo={pageInfo}
               onRowClick={handleRowClick}
               onAddClick={handleAddClick}
-            />
+            /> */}
           </TileBlock>
           <TileBlock
             title="Assignment Block Section"

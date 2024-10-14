@@ -2,8 +2,6 @@ import React from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import axios from 'axios';
 import 'react-toastify/dist/ReactToastify.css';
-import { useRoutes } from './RoutesContext';
-
 
 export const ToastProvider = ({ children, logToBackend = false }) => {
   return (
@@ -50,7 +48,7 @@ export const triggerToast = (message, isDarkMode = false, logToBackend = false) 
   const colors = isDarkMode ? darkColors : lightColors;
 
   const options = {
-    autoClose: 3000, // Automatically dismiss after 5 seconds
+    autoClose: 3000, // Automatically dismiss after n seconds
     closeButton: true,
     onClick: () => {
       navigator.clipboard.writeText(message.content); // Copy to clipboard

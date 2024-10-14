@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Box, Button, TextField, Typography, Link, IconButton, InputAdornment } from '@mui/material';
 import { Clear as ClearIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import BaseTemplate from './BaseTemplate';
-import { triggerToast } from './ToastProvider';
-import { useRoutes } from './RoutesContext';
+import BaseTemplate from '../../components/BaseTemplate';
+import { triggerToast } from '../../components/ToastProvider';
+import { useRoutes } from '../../contexts/RoutesContext';
 
 const ForgotPasswordForm = () => {
   const theme = useTheme();

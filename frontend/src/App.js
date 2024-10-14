@@ -2,11 +2,13 @@ import React, { Suspense } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import LoginForm from './components/LoginForm';
-import ForgotPasswordForm from './components/ForgotPasswordForm';
-import { RoutesProvider } from './components/RoutesContext';
-import { AuthProvider } from './components/AuthProvider';
+import LoginForm from './features/auth/LoginForm';
+import ForgotPasswordForm from './features/auth/ForgotPasswordForm';
+import { RoutesProvider } from './contexts/RoutesContext';
+import { AuthProvider } from './contexts/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import StudentGroupList from './features/group/StudentGroupList';
+import Debug from './components/debug';
 
 const TestPage = React.lazy(() => import('./TestPage'));
 
@@ -30,7 +32,7 @@ function App() {
           <RoutesProvider>
             <CssBaseline />
             <Routes>
-              <Route path="/" element={<LoginForm />} />
+              <Route path="/login" element={<LoginForm />} />
               <Route path="/forgot-password" element={<ForgotPasswordForm />} />
               <Route path="/home" element={
                   <ProtectedRoute>
@@ -40,6 +42,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/student" element={<StudentGroupList />} />
+              <Route path="/debug" element={<Debug />} />
               {/* Add other routes here as needed */}
             </Routes>
           </RoutesProvider>
