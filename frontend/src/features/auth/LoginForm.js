@@ -7,7 +7,6 @@ import BaseTemplate from '../../components/BaseTemplate';
 import { triggerToast } from '../../components/ToastProvider';
 import { useRoutes } from '../../contexts/RoutesContext';
 import { useAuth } from '../../contexts/AuthProvider';
-import { saveTokens } from '../../utils/jwtUtils'
 
 const LoginForm = () => {
   const theme = useTheme();
@@ -46,34 +45,21 @@ const LoginForm = () => {
       return;
     }
 
-    // Submit form
+    // call the login function form AuthProvider
     try {
       setLoading(true);
-      const response = await fetch(process.env.REACT_APP_API_LOGIN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ userId, password }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        console.log(data.redirect_url)        
-        login();  // Call login from your AuthProvider
-        navigate(data.redirect_url || routes.defaultRedirect);  // Fallback if redirect_url is missing
-        triggerToast({ type: 'success', content: `${data.message || 'Welcome back'}!` }, (mode === 'dark'), false);
-      } else if (response.status === 401) {
-        triggerToast({ type: 'warning', content: 'Invalid credentials. Please try again.' }, (mode === 'dark'), false);
+      const success = await login(userId, password);      
+      if (success) {
+        triggerToast({ type: 'success', content: `Welcome back!` }, (mode === 'dark'), false);
+        navigate(routes.defaultHOME);
       } else {
-        triggerToast({ type: 'error', content: `Login failed: ${data.message}` }, (mode === 'dark'), true);
+        triggerToast({ type: 'warning', content: 'Invalid credentials. Please try again.' }, (mode === 'dark'), false);
       }
-    } catch (error) {
-      triggerToast({ type: 'critical', content: `Login API error: ${error.message}` }, (mode === 'dark'), true);
-    } finally {
-      setLoading(false);  // Reset loading state
-    }
+      } catch (error) {
+        triggerToast({ type: 'critical', content: `Login API error: ${error.message}` }, (mode === 'dark'), true);
+      } finally {
+        setLoading(false);  // Reset loading state
+      }
   };
 
   const handleKeyPress = (event) => {
@@ -91,8 +77,6 @@ const LoginForm = () => {
     setter(''); // Clear the input field
     ref.current.focus();
   };
-
-
 
   return (
     <BaseTemplate>

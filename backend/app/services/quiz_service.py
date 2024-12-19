@@ -1,4 +1,4 @@
-from app.models import Quiz, Question, Option
+from app.models.quiz_models import Quiz, QuizQuestion, QuizOption
 from datetime import datetime
 
 def get_open_quizzes():

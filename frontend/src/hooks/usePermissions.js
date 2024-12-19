@@ -1,26 +1,11 @@
-// hooks/usePermissions.js
-import { useState, useEffect } from 'react';
-import { getAccessToken, hasPermission } from '../utils/jwtUtils';
+// usePermission.js
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthProvider';
 
-const usePermissions  = (resourceName) => {
-  const [permissions, setPermissions] = useState({
-    canCreate: false,
-    canUpdate: false,
-    canDelete: false,
-  });
-
-  useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      setPermissions({
-        canCreate: hasPermission(resourceName, 'create'),
-        canUpdate: hasPermission(resourceName, 'update'),
-        canDelete: hasPermission(resourceName, 'delete'),
-      });
-    }
-  }, [resourceName]);
-
-  return permissions;
+const usePermission = (resource, action) => {
+  const { authorizations } = useContext(AuthContext);
+  console.log(`usePermission: ${JSON.stringify(authorizations, null, 2)}`);
+  return authorizations[resource]?.[action] || false;
 };
 
-export default usePermissions;
+export default usePermission;

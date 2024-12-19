@@ -73,3 +73,7 @@ frontend/src/backup/
 *.swp
 *.bat
 package*.*
+dump*
+
+erd*
+*.sql

@@ -17,7 +17,6 @@ const BaseTemplate = ({ children, showNav = false }) => {
   const handleMenuClick = () => {
     setDrawerOpen(!drawerOpen);
   };
-
   return (
     <ToastProvider>
       <Box sx={{ display: 'flex', height: '100vh' }}>

@@ -1,19 +1,20 @@
-import React, { Suspense } from 'react';
+import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import LoginForm from './features/auth/LoginForm';
-import ForgotPasswordForm from './features/auth/ForgotPasswordForm';
 import { RoutesProvider } from './contexts/RoutesContext';
 import { AuthProvider } from './contexts/AuthProvider';
-import ProtectedRoute from './components/ProtectedRoute';
+// Custom functions
+import LoginForm from './features/auth/LoginForm';
+import ForgotPasswordForm from './features/auth/ForgotPasswordForm';
+import HomePage from './pages/HomePage';
 import StudentGroupList from './features/group/StudentGroupList';
-import Debug from './components/debug';
+import StudentGroupForm from './features/group/StudentGroupForm';
+// import Debug from './components/debug';
 
-const TestPage = React.lazy(() => import('./TestPage'));
+// const TestPage = React.lazy(() => import('./TestPage'));
 
 function App() {
-  const [themeMode, setThemeMode] = React.useState('light');
+  const [themeMode, setThemeMode] = useState('light');
 
   const toggleTheme = () => {
     setThemeMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
@@ -30,20 +31,14 @@ function App() {
       <Router>
         <AuthProvider>
           <RoutesProvider>
-            <CssBaseline />
+            {/* <TokenValidation /> */}
             <Routes>
+              <Route path="/home" element={<HomePage />} />
               <Route path="/login" element={<LoginForm />} />
               <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-              <Route path="/home" element={
-                  <ProtectedRoute>
-                    <Suspense fallback={<div>Loading...</div>}>
-                      <TestPage />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/student" element={<StudentGroupList />} />
-              <Route path="/debug" element={<Debug />} />
+              <Route path="/student-group" element={<StudentGroupList />} />
+              <Route path="/student-group/new" element={<StudentGroupForm />} />
+              <Route path="/student-group/:id" element={<StudentGroupForm />} />
               {/* Add other routes here as needed */}
             </Routes>
           </RoutesProvider>

@@ -1,85 +1,65 @@
-from app import db
+from app.extensions import db
 from flask import current_app
-from app.models import UserGroup, User, Tag, usergroup_user, usergroup_tag
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
-from marshmallow import Schema, fields, validate, ValidationError
-#from app.utils.logging_config import security_logger, app_logger
-#from app import app_logger, security_logger
+from app.models import UserGroup, User, Tag, usergroup_user, usergroup_tag
 from app.utils.rbac_utils import has_permission, has_permission_db
 
 RESOURCE_NAME = 'usergroup'
 
-# Marshmallow Schemas for validation
-class UserGroupSchema(Schema):
-    org_id = fields.Int(required=True)
-    title = fields.Str(required=True, validate=validate.Length(min=1, max=255))
-    description = fields.Str(validate=validate.Length(max=1000))
+def filter_user_groups(query, org_id, search_term=None, tags=None):
+    """
+    Apply common filtering logic to a user group query.
+    :param query: The base query object.
+    :param org_id: Organization ID for filtering.
+    :param search_term: Optional search term for filtering.
+    :param tags: Optional list of tags for filtering.
+    :return: Filtered query.
+    """
+    # Filter by organization ID
+    query = query.filter_by(org_id=org_id)
 
-def get_user_group_by_id(org_id, user_id, group_id):
-    """Fetch a user group by its ID."""
-    #if not has_permission(org_id, user_id, RESOURCE_NAME, 'read'):
-    current_app.app_logger.info(f"\t===== calling get_user_group_by_id")
-    print("entering get_user_group_by_id and calling has_permission_db")
-    if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'read'):
-        raise PermissionError(f'User {user_id} is not authorized to read user groups.')
+    # Apply filtering if a search term is provided
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        query = query.filter(
+            or_(
+                UserGroup.title.ilike(search_pattern),
+                UserGroup.description.ilike(search_pattern)
+            )
+        )
 
-    try:
-        user_group = UserGroup.query.get((group_id, org_id))
-        if user_group:
-            return serialize_user_group(user_group)
-        return None
-    except SQLAlchemyError as e:
-        current_app.app_logger.warning(f"get_user_group_by_id error: {str(e)}")
-        return None
+    # Apply tag filtering if tags are provided
+    if tags:
+        tag_list = tags.split(',')
+        query = query.join(UserGroup.tags).filter(Tag.name.in_(tag_list))
+
+    return query
+
 
 def get_user_groups(org_id, user_id, search_term=None, tags=None, page=1, per_page=25):
     """
     Retrieve paginated and filtered user groups.
-    :param user_id: ID of the requesting user for authorization checks
-    :param search_term: Optional search term for filtering user groups
-    :param page: The current page (1-based index)
-    :param per_page: Number of records per page
-    :return: A dictionary with paginated user groups and pagination info
     """
-    current_app.app_logger.debug(f'\t===== calling get_user_groups =====')
+    current_app.app_logger.debug(f'===== calling get_user_groups =====')
     try:
-        # Check authorization for 'read' action
         if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'read'):
-            raise PermissionError(f'User {user_id} is not authorized to read student group.')
+            raise PermissionError(f'User {user_id} is not authorized to read user groups.')
 
         # Base query for user groups
-        query = UserGroup.query.filter_by(org_id=org_id)
-        current_app.app_logger.debug(f'\t===== UserGroup.Query: {query}')
-        
-        # Apply filtering if a search term is provided
-        if search_term:
-            search_pattern = f"%{search_term}%"
-            query = query.filter(
-                or_(
-                    UserGroup.title.ilike(search_pattern),
-                    UserGroup.description.ilike(search_pattern)
-                )
-            )
-
-        # Apply tag filtering if tags are provided
-        if tags:
-            tag_list = tags.split(',')
-            query = query.join(UserGroup.tags).filter(Tag.name.in_(tag_list))
+        query = UserGroup.query
+        query = filter_user_groups(query, org_id, search_term, tags)
 
         # Apply pagination to the query
         paginated_result = query.paginate(page=page, per_page=per_page, error_out=False)
 
         # Serialize the user group data for the response
         user_groups_data = [serialize_user_group(group) for group in paginated_result.items]
-        current_app.app_logger.debug(f'\t===== user_groups_data: {user_groups_data}')
-        # Pagination info
         page_info = {
             'currentPage': paginated_result.page,
             'rowsPerPage': paginated_result.per_page,
             'totalRows': paginated_result.total,
         }
-        current_app.app_logger.debug(f"\t===== completed get_user_groups. Returning data to caller.")
 
         return {
             'rows': user_groups_data,
@@ -87,7 +67,7 @@ def get_user_groups(org_id, user_id, search_term=None, tags=None, page=1, per_pa
         }
     except PermissionError as pe:
         current_app.app_logger.warning(f"Permission error: {str(pe)}")
-        raise pe  # Let the calling route handle this
+        raise pe
     except SQLAlchemyError as e:
         current_app.app_logger.warning(f"get_user_groups error: {str(e)}")
         return {
@@ -99,210 +79,315 @@ def get_user_groups(org_id, user_id, search_term=None, tags=None, page=1, per_pa
             }
         }
 
-def get_students_by_user_group(org_id, user_id, group_id):
-    """Fetch all students associated with a specific user group"""
+
+def get_user_group_by_id(org_id, user_id, group_id, include_students=False, include_tags=False):
+    """Fetch a user group by ID, optionally including students and tags."""
     try:
-        if not has_permission(org_id, user_id, RESOURCE_NAME, 'read'):
+        current_app.app_logger.debug(f'===== get_user_group: {group_id} include_students:{include_students} include_tags:{include_tags}')
+
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'read'):
             raise PermissionError(f'User {user_id} is not authorized to read user groups.')
 
-        students = db.session.query(User).join(usergroup_user).filter(
-            usergroup_user.c.group_id == group_id
-        ).all()
+        # Fetch the user group from the database
+        query = UserGroup.query.filter_by(id=group_id)
+        query = filter_user_groups(query, org_id)  # Apply common filtering logic
+        user_group = query.first()
 
-        return [{"firstname": student.firstname, "lastname": student.lastname} for student in students]
-    except PermissionError as pe:
-        current_app.security_logger.critical(f"Permission error: {str(pe)}")
-        raise pe  # Let the calling route handle this
-    except Exception as e:
-        raise Exception(f"get_students_by_user_group error for group_id {group_id}: {str(e)}")
-
-def get_tags_by_user_group(org_id, user_id, group_id):
-    """Fetch all tags associated with a specific user group"""
-    try:
-        if not has_permission(org_id, user_id, RESOURCE_NAME, 'read'):
-            raise PermissionError(f'User {user_id} is not authorized to read user groups.')
-        
-        tags = db.session.query(Tag).join(usergroup_tag).filter(
-            usergroup_tag.c.usergroup_id == group_id,
-            Tag.org_id == org_id  # Add the org_id filter to ensure the tags belong to the correct organization
-        ).all()
-        
-        return [{"name": tag.name} for tag in tags]
-    except PermissionError as pe:
-        current_app.security_logger.critical(f"Permission error: {str(pe)}")
-        raise pe  # Let the calling route handle this
-    except Exception as e:
-        raise Exception(f"Error fetching tags for group {group_id}: {str(e)}")
-
-def create_user_group(org_id, user_id, data):
-    """Create a new user group."""
-    try:
-        if not has_permission(org_id, user_id, RESOURCE_NAME, 'create'):
-            raise PermissionError(f"User {user_id} is not authorized to create user groups")
-        
-        # Validate data using schema
-        schema = UserGroupSchema()
-        validated_data = schema.load(data)
-
-        # Create the new user group
-        new_group = UserGroup(
-            org_id=validated_data['org_id'],
-            title=validated_data['title'],
-            description=validated_data.get('description', ''),
-            created_by=user_id,
-            updated_by=user_id
-        )
-
-        db.session.add(new_group)
-        db.session.commit()
-
-        current_app.app_logger.info(f"User {user_id} created a new user group {new_group.title}.")
-        return serialize_user_group(new_group)
-    except ValidationError as ve:
-        current_app.app_logger.warning(f"create_user_group validation error: {str(ve)}")
-        raise ve
-    except PermissionError as pe:
-        current_app.security_logger.critical(f"create_user_group Permission error: {str(pe)}")
-        raise pe
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        current_app.app_logger.warning(f"create_user_group error: {str(e)}")
-        return None
-
-def update_user_group(org_id, user_id, group_id, data):
-    """Update an existing user group."""
-    try:
-        # Check authorization for 'update' action
-        if not has_permission(org_id, user_id, RESOURCE_NAME, 'update'):
-            raise PermissionError(f"User {user_id} is not authorized to update user groups")
-        
-        # Validate data using schema
-        schema = UserGroupSchema(partial=True)  # Allow partial updates
-        validated_data = schema.load(data)
-
-        # Retrieve the user group and update it
-        user_group = UserGroup.query.get(group_id)
         if not user_group:
-            raise ValueError(f"User group with ID {group_id} not found.")
+            return None
 
-        if user_group.created_by != user_id:
-            raise PermissionError(f"User {user_id} does not have permission to update group {group_id}.")
+        # Fetch associated students if required
+        students = []
+        if include_students:
+            students = [
+                {
+                    "id": student.id,
+                    "name": f"{student.firstname} {student.lastname}",
+                    "locked": student.locked
+                } 
+                for student in user_group.users
+            ]
 
-        # Update fields
-        user_group.title = validated_data.get('title', user_group.title)
-        user_group.description = validated_data.get('description', user_group.description)
-        user_group.updated_by = user_id
+        # Fetch associated tags if required
+        tags = []
+        if include_tags:
+            tags = [{"id": tag.id, "name": tag.name} for tag in user_group.tags]
 
-        db.session.commit()
+        return serialize_user_group(user_group, students, tags)
 
-        current_app.app_logger.info(f"User {user_id} updated user group {user_group.title}.")
-        return serialize_user_group(user_group)
-    except ValidationError as ve:
-        current_app.app_logger.warning(f"update_user_group validation error: {str(ve)}")
-        raise ve
     except PermissionError as pe:
-        current_app.security_logger.critical(f"update_user_group permission error: {str(pe)}")
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
         raise pe
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        current_app.app_logger.warning(f"update_user_group error: {str(e)}")
-        return None
-    except ValueError as ve:
-        current_app.app_logger.warning(f"update_user_group value error: {str(ve)}")
-        raise ve
+    except Exception as e:
+        raise Exception(f"Error fetching user group for ID {group_id}: {str(e)}")
 
-def delete_user_groups(org_id, user_id, group_ids):
-    """
-    Delete one or multiple user groups.
-    :param org_id: Organization ID
-    :param user_id: ID of the user requesting the delete action
-    :param group_ids: List of group IDs to be deleted
-    :return: Success message or raise an exception
-    """
-    try:
-        # Ensure group_ids is always treated as a list
-        if isinstance(group_ids, str):
-            group_ids = [group_ids]
 
-        # Fetch all user groups to delete
-        groups_to_delete = UserGroup.query.filter(UserGroup.id.in_(group_ids), UserGroup.org_id == org_id).all()
-
-        if not groups_to_delete:
-            raise ValueError(f"No valid user groups found for the provided IDs: {group_ids}")
-
-        # Check permissions and delete each group
-        for group in groups_to_delete:
-            if not has_permission(group.org_id, user_id, RESOURCE_NAME, 'delete'):
-                raise PermissionError(f"User {user_id} is not authorized to delete group {group.id}")
-
-            db.session.delete(group)  # Mark the group for deletion
-
-        # Commit the deletions
-        db.session.commit()
-
-        current_app.app_logger.info(f"User {user_id} deleted {len(groups_to_delete)} user group(s).")
-        return f"Successfully deleted {len(groups_to_delete)} user group(s)."
-    
-    except PermissionError as pe:
-        current_app.app_logger.warning(f"Permission error in delete_user_groups: {str(pe)}")
-        raise pe
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        current_app.app_logger.warning(f"delete_user_groups error: {str(e)}")
-        raise e
-    except ValueError as ve:
-        current_app.app_logger.warning(f"delete_user_groups value error: {str(ve)}")
-        raise ve
-
-def serialize_user_group(group):
+def serialize_user_group(group, students=None, tags=None):
     """Helper function to serialize user group objects into JSON-friendly format."""
-    return {
+    serialized_data = {
         "id": group.id,
         "title": group.title,
         "description": group.description,
         "studentcount": group.studentcount,
         "status": group.status,
         "created_at": group.created_at.strftime('%Y-%m-%d'),
-        "updated_at": group.updated_at.strftime('%Y-%m-%d')
+        "created_by": group.created_by,
+        "updated_at": group.updated_at.strftime('%Y-%m-%d'),
+        "updated_by": group.updated_by
     }
 
-def mass_status_update_groups_service(org_id, user_id, group_ids, new_status):
-    """Mass update the status of user groups."""
+    # Add students if provided
+    if students is not None:
+        serialized_data["studentsInGroup"] = students
+
+    # Add tags if provided
+    if tags is not None:
+        serialized_data["tags"] = tags
+
+    return serialized_data
+
+def mass_status_update_groups(org_id, user_id, group_ids, new_status):
+    """
+    Update the status of multiple user groups.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param group_ids: List of group IDs to update.
+    :param new_status: New status to set for the user groups.
+    :return: Success message or error details.
+    """
     try:
-        # Check authorization for 'update' action
-        if not has_permission(org_id, user_id, RESOURCE_NAME, 'update'):
-            raise PermissionError(f"User {user_id} is not authorized to update user groups")
-        
-        # Check that group_ids is a list and that new_status is valid
-        if not group_ids or not isinstance(group_ids, list):
-            raise ValueError("Invalid group_ids provided.")
-        if new_status not in [0, 1]:  # Assuming '0' is disabled and '1' is enabled
-            raise ValueError("Invalid status value provided.")
+        current_app.app_logger.debug(f"===== mass_status_update_groups_service called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'update'):
+            raise PermissionError(f"User {user_id} is not authorized to update user groups.")
 
-        # Fetch all the user groups that need updating
-        groups_to_update = UserGroup.query.filter(UserGroup.id.in_(group_ids)).all()
+        # Fetch the user groups
+        user_groups = UserGroup.query.filter(UserGroup.id.in_(group_ids), UserGroup.org_id == org_id).all()
 
-        if not groups_to_update:
-            raise ValueError("No valid user groups found for the provided IDs.")
+        if not user_groups:
+            raise ValueError("No matching user groups found.")
 
-        # Check permissions for each group and update the status
-        for group in groups_to_update:            
-            group.status = new_status  # Update status
-            group.updated_by = user_id  # Record who made the update
-            db.session.add(group)  # Mark for update
+        # Update the status
+        for group in user_groups:
+            group.status = new_status
+            group.updated_by = user_id
+            group.updated_at = db.func.now()
 
-        # Commit the changes to the database
         db.session.commit()
 
-        return f"Successfully updated {len(groups_to_update)} user group(s)."
-    
+        return {"message": f"Successfully updated the status of {len(user_groups)} user groups."}
+
     except PermissionError as pe:
-        current_app.app_logger.warning(f"mass_status_update_groups_service permission error: {str(pe)}")
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
+        raise pe
+    except ValueError as ve:
+        current_app.app_logger.warning(f"Value error: {str(ve)}")
+        return {"error": str(ve)}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.app_logger.warning(f"Database error: {str(e)}")
+        raise e
+
+
+def mass_delete_groups(org_id, user_id, group_ids):
+    """
+    Delete multiple user groups.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param group_ids: List of group IDs to delete.
+    :return: Success message or error details.
+    """
+    try:
+        current_app.app_logger.debug(f"===== mass_delete_groups_service called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'delete'):
+            raise PermissionError(f"User {user_id} is not authorized to delete user groups.")
+
+        # Fetch the user groups
+        user_groups = UserGroup.query.filter(UserGroup.id.in_(group_ids), UserGroup.org_id == org_id).all()
+
+        if not user_groups:
+            raise ValueError("No matching user groups found.")
+
+        # Delete the user groups
+        for group in user_groups:
+            db.session.delete(group)
+
+        db.session.commit()
+
+        return {"message": f"Successfully deleted {len(user_groups)} user groups."}
+
+    except PermissionError as pe:
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
+        raise pe
+    except ValueError as ve:
+        current_app.app_logger.warning(f"Value error: {str(ve)}")
+        return {"error": str(ve)}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.app_logger.warning(f"Database error: {str(e)}")
+        raise e
+
+def create_user_group(org_id, user_id, title, description=None, status='1', tags=None):
+    """
+    Create a new user group.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param title: Title of the user group.
+    :param description: Optional description of the group.
+    :param status: Status of the group (default: '1').
+    :param tags: Optional list of tag IDs to associate with the group.
+    :return: Created user group.
+    """
+    try:
+        current_app.app_logger.debug(f"===== create_user_group called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'create'):
+            raise PermissionError(f"User {user_id} is not authorized to create user groups.")
+
+        # Create the user group
+        new_group = UserGroup(
+            org_id=org_id,
+            title=title,
+            description=description,
+            status=status,
+            created_by=user_id,
+            updated_by=user_id,
+        )
+        db.session.add(new_group)
+        db.session.flush()  # Get the new group ID
+
+        # Associate tags if provided
+        if tags:
+            tag_objects = Tag.query.filter(Tag.id.in_(tags), Tag.org_id == org_id).all()
+            new_group.tags.extend(tag_objects)
+
+        db.session.commit()
+        return serialize_user_group(new_group)
+
+    except PermissionError as pe:
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
         raise pe
     except SQLAlchemyError as e:
         db.session.rollback()
-        current_app.security_logger.critical(f"mass_status_update_groups_service error: {str(e)}")
+        current_app.app_logger.warning(f"Database error: {str(e)}")
         raise e
-    except Exception as e:
-        current_app.app_logger.error(f"mass_status_update_groups_service error: {str(e)}")
+
+
+def update_user_group(org_id, user_id, group_id, title=None, description=None, status=None, tags=None):
+    """
+    Update an existing user group.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param group_id: ID of the group to update.
+    :param title: New title of the group (optional).
+    :param description: New description of the group (optional).
+    :param status: New status of the group (optional).
+    :param tags: List of tag IDs to associate with the group (optional).
+    :return: Updated user group.
+    """
+    try:
+        current_app.app_logger.debug(f"===== update_user_group called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'update'):
+            raise PermissionError(f"User {user_id} is not authorized to update user groups.")
+
+        user_group = UserGroup.query.filter_by(id=group_id, org_id=org_id).first()
+        if not user_group:
+            raise ValueError(f"User group with ID {group_id} not found.")
+
+        # Update fields
+        if title is not None:
+            user_group.title = title
+        if description is not None:
+            user_group.description = description
+        if status is not None:
+            user_group.status = status
+        user_group.updated_by = user_id
+
+        # Update tags if provided
+        if tags is not None:
+            tag_objects = Tag.query.filter(Tag.id.in_(tags), Tag.org_id == org_id).all()
+            user_group.tags = tag_objects
+
+        db.session.commit()
+        return serialize_user_group(user_group)
+
+    except PermissionError as pe:
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
+        raise pe
+    except ValueError as ve:
+        current_app.app_logger.warning(f"Value error: {str(ve)}")
+        return {"error": str(ve)}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.app_logger.warning(f"Database error: {str(e)}")
+        raise e
+
+
+def delete_user_group(org_id, user_id, group_id):
+    """
+    Delete a user group.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param group_id: ID of the group to delete.
+    :return: Success message or error details.
+    """
+    try:
+        current_app.app_logger.debug(f"===== delete_user_group called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'delete'):
+            raise PermissionError(f"User {user_id} is not authorized to delete user groups.")
+
+        user_group = UserGroup.query.filter_by(id=group_id, org_id=org_id).first()
+        if not user_group:
+            raise ValueError(f"User group with ID {group_id} not found.")
+
+        db.session.delete(user_group)
+        db.session.commit()
+
+        return {"message": f"Successfully deleted user group {group_id}."}
+
+    except PermissionError as pe:
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
+        raise pe
+    except ValueError as ve:
+        current_app.app_logger.warning(f"Value error: {str(ve)}")
+        return {"error": str(ve)}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.app_logger.warning(f"Database error: {str(e)}")
+        raise e
+
+
+def mass_update_group_status(org_id, user_id, group_ids, new_status):
+    """
+    Update the status of multiple user groups.
+    :param org_id: Organization ID.
+    :param user_id: ID of the user performing the operation.
+    :param group_ids: List of group IDs to update.
+    :param new_status: New status to set for the user groups.
+    :return: Success message or error details.
+    """
+    try:
+        current_app.app_logger.debug(f"===== mass_update_group_status called =====")
+        if not has_permission_db(org_id, user_id, RESOURCE_NAME, 'update'):
+            raise PermissionError(f"User {user_id} is not authorized to update user groups.")
+
+        user_groups = UserGroup.query.filter(UserGroup.id.in_(group_ids), UserGroup.org_id == org_id).all()
+        if not user_groups:
+            raise ValueError("No matching user groups found.")
+
+        for group in user_groups:
+            group.status = new_status
+            group.updated_by = user_id
+
+        db.session.commit()
+
+        return {"message": f"Successfully updated the status of {len(user_groups)} user groups."}
+
+    except PermissionError as pe:
+        current_app.security_logger.critical(f"Permission error: {str(pe)}")
+        raise pe
+    except ValueError as ve:
+        current_app.app_logger.warning(f"Value error: {str(ve)}")
+        return {"error": str(ve)}
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.app_logger.warning(f"Database error: {str(e)}")
         raise e

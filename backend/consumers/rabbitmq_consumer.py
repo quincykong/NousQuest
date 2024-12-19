@@ -2,8 +2,8 @@ import sys
 import os
 import pika
 import json
+from app.config.logging_config import frontend_logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.utils.logging_config import frontend_logger  # Your existing frontend logger
 
 def callback(ch, method, properties, body):
     """

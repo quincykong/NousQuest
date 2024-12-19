@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import { Box, Button, Chip, IconButton, Menu, MenuItem, List, ListItem, ListItemText, Paper, Toolbar, TextField } from '@mui/material';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -12,14 +13,17 @@ import HashtagInput from '../../components/HashtagInput';
 import usePermissions from '../../hooks/usePermissions';
 import useUserPreferences from '../../hooks/useUserPreferences';
 //import { saveUserPreferences, getUserPreferences } from '../../services/preferencesService';
-import { fetchUserGroups, performMassAction } from '../../services/studentGroupService';
-import { fetchStudentsAndTags } from '../../services/StudentsAndTagsService';
+import { fetchUserGroupById, fetchUserGroups, performMassAction } from '../../services/studentGroupService';
+//import { fetchStudentsAndTags } from '../../services/StudentsAndTagsService';
 import { debouncedSearch } from '../../utils/debounceUtils';
+import routes from '../../context/Routes';
 
 const StudentGroupList = () => {
   const RESOURCE_NAME = 'usergroup';
   const ROWS_PER_PAGE = 25;
 
+  const navigate = useNavigate();
+  
   // const [isLoading, setIsLoading] = useState(true);
   const { canCreate, canUpdate, canDelete } = usePermissions(RESOURCE_NAME);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -71,7 +75,21 @@ const StudentGroupList = () => {
 
   // Define DataGrid Columns
   const columns = useMemo(() => [
-    { field: 'title', headerName: 'Group Title', sortable: true, width: 200 },
+    {
+      field: 'title',
+      headerName: 'Group Title',
+      sortable: true,
+      width: 200,
+      renderCell: (params) => (
+        <Button color="primary"
+          onClick={() => 
+            navigate(`/student-group/${params.row.id}`)
+          }
+        > 
+          {params.value}
+        </Button>
+      ),
+    },
     { field: 'description', headerName: 'Description', sortable: true, width: 400 },
     { field: 'studentcount', headerName: 'Student(s)', sortable: true, width: 50 },
     {
@@ -127,10 +145,17 @@ const StudentGroupList = () => {
 
   // Fetch students and tags for the selected group
   const handleRowClick = (params) => {
-    fetchStudentsAndTags(params.row.id).then(({ students, tags }) => {
-      setStudents(students.map(s => `${s.firstname} ${s.lastname}`));
-      setTags(tags.map(t => t.name));
-    });
+    fetchUserGroupById(params.row.id, true, true)  // Set both includeStudents and includeTags to true
+      .then((groupData) => {
+        if (groupData) {
+          setStudents(groupData.studentsInGroup); // Set students from the fetched group data
+          setTags(groupData.tags); // Set tags from the fetched group data
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch group data:", error);
+        triggerToast({ type: 'critical', content: `Failed to fetch group data: ${error.message}`, logToBackend: true });
+      });
   };
 
   // Track the selected groups
@@ -197,7 +222,9 @@ const StudentGroupList = () => {
   };
 
   const listStyle = { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', width: '100%' };
-
+  // console.log(`canCreate: ${canCreate}`)
+  // console.log(`canUpdate: ${canUpdate}`)
+  // console.log(`canDelete: ${canDelete}`)
   return (
     <BaseTemplate showNav={true}>
       <Box sx={{ display: 'flex', flexDirection: 'row', flexGrow: 1 }}>

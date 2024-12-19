@@ -7,14 +7,15 @@ import { useTheme } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 
 const AssignmentBlock = ({
-  assignedItems,
-  availableItems,
+  assignedItems = [],
+  availableItems = [],
   onAssign,
   onRemove,
   removableItems,
-  leftLimit = 0,  // upper limit on left-hand side list with default 0 (unlimited)
+  leftLimit = 0,
   leftTitle,
-  rightTitle
+  rightTitle,
+  readOnly = true
 }) => {
   const [assigned, setAssigned] = useState(assignedItems);
   const [available, setAvailable] = useState(availableItems);
@@ -30,16 +31,23 @@ const AssignmentBlock = ({
     setTimeout(() => setLoading(false), 1000);
   }, []);
 
+  useEffect(() => {
+    setAssigned(assignedItems);
+    setAvailable(availableItems);
+  }, [assignedItems, availableItems]);
+  
   const handleMoveRight = useCallback(() => {
-    const newAvailable = [...available, ...assigned.filter(item => removableItems.includes(item.id))];
-    const newAssigned = assigned.filter(item => !removableItems.includes(item.id));
+    if (readOnly) return;
+    const newAvailable = [...available, ...assigned.filter(item => (removableItems || []).includes(item.id))];
+    const newAssigned = assigned.filter(item => !(removableItems || []).includes(item.id));
     setAssigned(newAssigned);
     setAvailable(newAvailable);
     onRemove(newAssigned);
     onAssign(newAvailable);
-  }, [assigned, available, onRemove, onAssign, removableItems]);
+  }, [assigned, available, onRemove, onAssign, removableItems, readOnly]);
 
   const handleMoveLeft = useCallback(() => {
+    if (readOnly) return;
     const totalItemsToMove = available.length;
     const remainingSpace = leftLimit - assigned.length;
 
@@ -53,11 +61,12 @@ const AssignmentBlock = ({
     setAvailable([]);
     onAssign(newAssigned);
     onRemove([]);
-  }, [available, assigned, leftLimit, onAssign, onRemove]);
+  }, [available, assigned, leftLimit, onAssign, onRemove, readOnly]);
 
   const handleMoveItem = useCallback((item, direction) => {
+    if (readOnly) return;
     if (direction === 'right') {
-      if (removableItems.includes(item.id)) {
+      if ((removableItems || []).includes(item.id)) {
         const updatedAssigned = assigned.filter(i => i.id !== item.id);
         const updatedAvailable = [...available, item];
         setAssigned(updatedAssigned);
@@ -78,25 +87,31 @@ const AssignmentBlock = ({
       onAssign(updatedAssigned);
       onRemove(updatedAvailable);
     }
-  }, [assigned, available, removableItems, onAssign, onRemove, leftLimit]);
+  }, [assigned, available, removableItems, onAssign, onRemove, leftLimit, readOnly]);
 
   const handleMove = useCallback((direction) => {
+    if (readOnly) return;
     if (direction === 'left') {
       handleMoveLeft();
     } else if (direction === 'right') {
       handleMoveRight();
     }
-  }, [handleMoveLeft, handleMoveRight]);
+  }, [handleMoveLeft, handleMoveRight, readOnly]);
 
   const handleKeyDown = useCallback((e, item, direction) => {
+    if (readOnly) return;
     if (e.key === 'Enter') {
       handleMoveItem(item, direction);
     }
-  }, [handleMoveItem]);
+  }, [handleMoveItem, readOnly]);
 
-  const filterItems = useCallback((items, filter) => items.filter(item => item.name.toLowerCase().includes(filter.toLowerCase())), []);
-
+  // const filterItems = useCallback((items, filter) => items.filter(item => item.name.toLowerCase().includes(filter.toLowerCase())), []);
+  const filterItems = useCallback((items, filter) => 
+    items.filter(item => item.name && item.name.toLowerCase().includes(filter.toLowerCase()))
+  , []);
+  
   const handleConfirmMoveAll = useCallback((direction) => {
+    if (readOnly) return;
     if (direction === 'left') {
       const totalItemsToMove = available.length;
       const remainingSpace = leftLimit - assigned.length;
@@ -108,7 +123,7 @@ const AssignmentBlock = ({
     }
     setConfirmOpen(true);
     setMoveDirection(direction);
-  }, [available.length, leftLimit, assigned.length]);
+  }, [available.length, leftLimit, assigned.length, readOnly]);
 
   const handleConfirmClose = useCallback(() => {
     setConfirmOpen(false);
@@ -163,24 +178,27 @@ const AssignmentBlock = ({
           {filterItems(assigned, assignedFilter).map(item => (
             <ListItem
               key={item.id}
-              button={removableItems.includes(item.id) ? "true" : undefined}
-              disabled={!removableItems.includes(item.id)}
+              button={(removableItems || []).includes(item.id) ? true : undefined}
+              disabled={!(removableItems || []).includes(item.id)}
               onClick={() => handleMoveItem(item, 'right')}
               onKeyDown={(e) => handleKeyDown(e, item, 'right')}
               style={{
-                cursor: removableItems.includes(item.id) ? 'pointer' : 'not-allowed',
+                cursor: (removableItems || []).includes(item.id) ? 'pointer' : 'not-allowed',
               }}
             >
-              <ListItemText primary={item.name} />
+              <ListItemText 
+                primary={item.name}
+                secondary={item.locked ? 'Locked' : 'Active'} 
+              />
             </ListItem>
           ))}
         </List>
       </Paper>
       <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center"> {/* Centering the buttons */}
-        <Button variant="contained" onClick={() => handleConfirmMoveAll('left')} style={{ marginBottom: 8 }}>
+        <Button variant="contained" onClick={() => handleConfirmMoveAll('left')} style={{ marginBottom: 8 }} disabled={readOnly}>
           <KeyboardDoubleArrowLeftIcon />
         </Button>
-        <Button variant="contained" onClick={() => handleConfirmMoveAll('right')}>
+        <Button variant="contained" onClick={() => handleConfirmMoveAll('right')} disabled={readOnly}>
           <KeyboardDoubleArrowRightIcon />
         </Button>
       </Box>
@@ -211,14 +229,17 @@ const AssignmentBlock = ({
           {filterItems(available, availableFilter).map(item => (
             <ListItem 
                 key={item.id} 
-                button={"true"}
+                button={true}
                 onClick={() => handleMoveItem(item, 'left')}
                 onKeyDown={(e) => handleKeyDown(e, item, 'left')}
                 style={{
                   cursor: 'pointer',
                 }}
             >
-              <ListItemText primary={item.name} />
+              <ListItemText 
+                primary={item.name}
+                secondary={item.locked ? 'Locked' : 'Active'} 
+              />
             </ListItem>
           ))}
         </List>

@@ -17,7 +17,8 @@ export const fetchStudentsAndTags = async (groupId) => {
   
       const studentData = await studentResponse.json();
       const tagData = await tagResponse.json();
-      
+      console.log(`studentData: ${(studentData)}`)
+      console.log(`tagData: ${(tagData)}`)
       return {
         students: studentData.students || [],
         tags: tagData.tags || [],

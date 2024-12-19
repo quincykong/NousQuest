@@ -16,7 +16,7 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthProvider'; // assuming you have a useAuth hook to handle JWT and roles
+import { useAuth } from '../context/AuthProvider'; // assuming you have a useAuth hook to handle JWT and roles
 
 const drawerWidth = 230;
 

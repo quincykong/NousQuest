@@ -9,8 +9,8 @@ const TileBlock = ({
   children,
   icon,
   collapsible = true,
-  isCollapsed,        // New prop to control the collapsed state from the parent
-  onToggle,           // New prop to notify parent when toggled
+  isCollapsed, 
+  onToggle,
   backgroundColor,
   textColor,
   inheritTheme = true
