@@ -15,7 +15,8 @@ class LoginSchema(Schema):
     Schema for validating login request payload.
     """
     userId = fields.Email(required=True, error_messages={"required": "User ID is required.", "invalid": "Invalid email format."})
-    password = fields.Str(required=True, validate=lambda p: len(p) > 0, error_messages={"required": "Password is required."})
+    # password = fields.Str(required=True, validate=lambda p: len(p) > 0, error_messages={"required": "Password is required."})
+    password = fields.Str(required=True, error_messages={"required": "Password is required."})
 
     @validates("password")
     def validate_password(self, password):
@@ -24,12 +25,3 @@ class LoginSchema(Schema):
         """
         if len(password.strip()) == 0:
             raise ValidationError("Password cannot be empty.")
-
-    @validates_schema
-    def validate_schema(self, data, **kwargs):
-        """
-        Custom schema-wide validation logic (if needed).
-        """
-        if not data.get("userId") or not data.get("password"):
-            raise ValidationError("Both 'userId' and 'password' fields are required.")
-

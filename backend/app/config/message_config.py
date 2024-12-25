@@ -1,10 +1,8 @@
 import smtplib
 from flask import current_app
 from flask_mail import Mail, Message
-#from app import db
 from app.models import Organization
-#from app.utils.logging_config import app_logger
-#from app import app_logger
+
 
 def get_smtp_settings(organization_id):
     organization = Organization.query.get(organization_id)

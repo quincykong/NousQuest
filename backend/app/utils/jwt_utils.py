@@ -28,6 +28,8 @@ def create_jwt_token(org_id, user_id, access_expires_delta=None):
     Returns:
         dict: A dictionary with access_token and refresh_token.
     """
+    current_app.app_logger.debug(f"JWT_SECRET_KEY: {current_app.config.get('JWT_SECRET_KEY')}")
+
     try:
         access_token = create_token(
             identity=user_id,

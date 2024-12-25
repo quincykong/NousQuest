@@ -46,7 +46,8 @@ def get_user_authorizations(user_id, org_id, resources=None):
             )
 
             for auth in authorizations:
-                action = Action.query.get(auth.action_id)
+                #action = db.session.get(auth.action_id)
+                action = db.session.get(Action, auth.action_id)
                 resource_permissions[action.name] = True
 
             # Add the resource's permissions to the result

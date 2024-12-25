@@ -128,7 +128,7 @@ def serialize_user_group(group, students=None, tags=None):
         "id": group.id,
         "title": group.title,
         "description": group.description,
-        "studentcount": group.studentcount,
+        # "studentcount": group.studentcount,
         "status": group.status,
         "created_at": group.created_at.strftime('%Y-%m-%d'),
         "created_by": group.created_by,

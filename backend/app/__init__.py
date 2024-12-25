@@ -8,12 +8,16 @@ def create_app(config_class=Config):
     """Application factory."""
     app = Flask(__name__)
 
-        # Load the specified config class
+    # Load the specified config class
     if config_class == "testing":
         app.config.from_object(TestingConfig)
     else:
         app.config.from_object(Config)
-    # app.config.from_object(config_class)
+
+    # Ensure SECURITY settings are properly applied to app.config
+    security_config = app.config.get('SECURITY', {})
+    for key, value in security_config.items():
+        app.config[key] = value
 
     # Initialize extensions
     db.init_app(app)
